@@ -1,45 +1,44 @@
 # MablAutomationCode
-let data = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
-let actions = Array.isArray(data) ? data : Object.values(data).filter(x => x?.actionId && x?.attributes);
+let resp2 = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
+let actions2 = Array.isArray(resp2) ? resp2 : Object.values(resp2).filter(x => x?.actionId && x?.attributes);
 
-// Rules using ActionDisplayId
-const rules = [
-  { ActionDisplayId: 'all', attr: 'minNumberOfAccountsAllowedDocuSign', val: 1 },
-  { ActionDisplayId: 1060, attr: 'maxNumberOfAccountsAllowedDocuSign', val: 6 },
-  { ActionDisplayId: 'not1060', attr: 'maxNumberOfAccountsAllowedDocuSign', val: 1 },
-  { ActionDisplayId: 'all', attr: 'minNumberOfAccountsAllowedDigital', val: 1 },
-  { ActionDisplayId: 1060, attr: 'maxNumberOfAccountsAllowedDigital', val: 12 },
-  { ActionDisplayId: 'not1060', attr: 'maxNumberOfAccountsAllowedDigital', val: 1 },
+// Define your rules for ActionDisplayId 1060
+var rules1060 = [
+  { attr: 'minNumberOfRecipientsAllowedDocuSign', val: 1 },
+  { attr: 'maxNumberOfRecipientsAllowedDocuSign', val: 6 },
+  { attr: 'minNumberOfRecipientsAllowedDigital', val: 1 },
+  { attr: 'maxNumberOfRecipientsAllowedDigital', val: 10 },
+  { attr: 'minNumberOfAccountsAllowedDocuSign', val: 1 },
+  { attr: 'maxNumberOfAccountsAllowedDocuSign', val: 6 },
+  { attr: 'minNumberOfAccountsAllowedDigital', val: 1 },
+  { attr: 'maxNumberOfAccountsAllowedDigital', val: 12 },
+  { attr: 'deliveryChannel', val: ['Digital', 'DocuSign'] },
+  { attr: 'adviceNeeded', val: 'M' }
 ];
 
-let pass = [], fail = [];
+let good = [], bad = [];
 
-for (let r of rules) {
-  let targets = actions.filter(a =>
-    r.ActionDisplayId === 'all' ? true :
-    r.ActionDisplayId === 'not1060' ? a.actionId !== 1060 :
-    a.actionId === r.ActionDisplayId
-  );
+let action1060 = actions2.find(a => a.actionId === 1060);
 
-  let allOk = true;
+if (!action1060) {
+  throw new Error('ActionDisplayId 1060 not found in response.');
+}
 
-  for (let a of targets) {
-    let actual = a.attributes?.[r.attr];
-    if (actual !== r.val) {
-      fail.push(`ActionDisplayId ${a.actionId} does not have expected value for AttributeName ${r.attr}`);
-      allOk = false;
-    }
+for (let rule of rules1060) {
+  let actual = action1060.attributes?.[rule.attr];
+
+  // Special handling for deliveryChannel as array comparison
+  if (Array.isArray(rule.val)) {
+    let match = Array.isArray(actual) && rule.val.every(v => actual.includes(v));
+    if (!match) bad.push(`${rule.attr} mismatch for 1060`);
+    else good.push(`${rule.attr} matches for 1060`);
   }
-
-  if (allOk) {
-    let label =
-      r.ActionDisplayId === 'all' ? 'In all ActionDisplayId' :
-      r.ActionDisplayId === 'not1060' ? 'For all except 1060 ActionDisplayId' :
-      `For ActionDisplayId ${r.ActionDisplayId}`;
-    pass.push(`${label} the AttributeName ${r.attr} has value ${r.val}`);
+  else {
+    if (actual !== rule.val) bad.push(`${rule.attr} mismatch for 1060`);
+    else good.push(`${rule.attr} matches for 1060`);
   }
 }
 
-pass.forEach(p => console.log(p));
-fail.forEach(f => console.log(f));
-if (fail.length > 0) throw new Error('Validation failed:\n' + fail.join('\n'));
+good.forEach(g => console.log(g));
+bad.forEach(b => console.log(b));
+if (bad.length > 0) throw new Error('Validation failed:\n' + bad.join('\n'));
