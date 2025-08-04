@@ -1,61 +1,45 @@
 # MablAutomationCode
-// Parse response safely
-var resp2 = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
 
-// Get actions array from response
-var actions2 = Array.isArray(resp2) ? resp2 : Object.values(resp2).filter(x => x?.actionId && x?.attributes);
 
-// Define validation rules for ActionDisplayId 1060
-var rules1060 = [
-  { attr: 'minNumberOfRecipientsAllowedDocuSign', val: 1 },
-  { attr: 'maxNumberOfRecipientsAllowedDocuSign', val: 6 },
-  { attr: 'minNumberOfRecipientsAllowedDigital', val: 1 },
-  { attr: 'maxNumberOfRecipientsAllowedDigital', val: 10 },
-  { attr: 'minNumberOfAccountsAllowedDocuSign', val: 1 },
-  { attr: 'maxNumberOfAccountsAllowedDocuSign', val: 6 },
-  { attr: 'minNumberOfAccountsAllowedDigital', val: 1 },
-  { attr: 'maxNumberOfAccountsAllowedDigital', val: 12 },
-  { attr: 'deliveryChannel', val: ['Digital', 'DocuSign'] },
-  { attr: 'adviceNeeded', val: 'M' }
+
+
+var resp = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
+var actions = Array.isArray(resp) ? resp : Object.values(resp).filter(a => a?.actionId && a?.actionName);
+
+var rules = [
+  { id: 1002, payload: true },
+  { id: 1070, payload: true, name: 'Open MAS Account - MAS Select', parent: true },
+  { id: 1069, absent: true },
+  { id: 1082, absent: true, parent: true },
+  { id: 1083, absent: true, parent: true },
+  { id: 1084, absent: true, parent: true }
 ];
 
-// Initialize result lists
 var good = [], bad = [];
 
-// Find action with ActionDisplayId 1060
-var action1060 = actions2.find(a => a.actionId === 1060);
+rules.forEach(r => {
+  let act = actions.find(a => a.actionId === r.id);
 
-if (!action1060) {
-  throw new Error("ActionDisplayId 1060 not found in response.");
-}
-
-// Apply rules
-for (let rule of rules1060) {
-  let actual = action1060.attributes?.[rule.attr];
-
-  if (Array.isArray(rule.val)) {
-    let match = Array.isArray(actual) && rule.val.every(v => actual.includes(v));
-
-    if (!match) {
-      bad.push(`Attribute: ${rule.attr}, Expected: [${rule.val}], Actual: [${actual}]`);
-    } else {
-      good.push(`Attribute: ${rule.attr}, Value matched: [${actual}]`);
-    }
-
-  } else {
-    if (actual !== rule.val) {
-      bad.push(`Attribute: ${rule.attr}, Expected: ${rule.val}, Actual: ${actual}`);
-    } else {
-      good.push(`Attribute: ${rule.attr}, Value matched: ${actual}`);
-    }
+  if (r.absent) {
+    act ? bad.push(`Action ${r.id} should NOT be present.`) : good.push(`Action ${r.id} correctly absent.`);
+    return;
   }
-}
+  if (!act) return bad.push(`Action ${r.id} not found.`);
 
-// Print results
+  if (r.payload && (!act.actionPayload || Object.keys(act.actionPayload).length === 0))
+    bad.push(`Action ${r.id} has empty actionPayload.`);
+  else if (r.payload) good.push(`Action ${r.id} has valid payload.`);
+
+  if (r.parent !== undefined)
+    act.isParentAction !== r.parent
+      ? bad.push(`Action ${r.id} isParent should be ${r.parent}.`)
+      : good.push(`Action ${r.id} isParent is correct.`);
+
+  if (r.name && act.actionName !== r.name)
+    bad.push(`Action ${r.id} name mismatch. Expected '${r.name}', got '${act.actionName}'.`);
+  else if (r.name) good.push(`Action ${r.id} name is correct.`);
+});
+
 good.forEach(g => console.log(g));
 bad.forEach(b => console.log(b));
-
-// Throw error if any validation failed
-if (bad.length > 0) {
-  throw new Error('Validation failed:\n' + bad.join('\n'));
-}
+if (bad.length) throw new Error(bad.join('\n'));
