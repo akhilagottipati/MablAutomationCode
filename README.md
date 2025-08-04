@@ -4,42 +4,43 @@
 
 
 var resp = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
-var actions = Array.isArray(resp) ? resp : Object.values(resp).filter(a => a?.actionId && a?.actionName);
+var actions = Array.isArray(resp) ? resp : Object.values(resp).filter(a => a?.actionId);
 
 var rules = [
   { id: 1002, payload: true },
-  { id: 1070, payload: true, name: 'Open MAS Account - MAS Select', parent: true },
-  { id: 1069, absent: true },
-  { id: 1082, absent: true, parent: true },
-  { id: 1083, absent: true, parent: true },
-  { id: 1084, absent: true, parent: true }
+  { id: 1070, payload: true, parent: true },
+  { id: 1069, payload: true, name: 'Open MAS Account - MAS Select' },
+  { id: 1082, payload: true, parent: true, name: 'Open MAS Account - ThomasPartners (TPI)' },
+  { id: 1083, payload: true, parent: true, name: 'Open MAS Account - Wasmer Schroeder (WS)' },
+  { id: 1084, payload: true, parent: true, name: 'Open MAS Account - Windhaven (WH)' }
 ];
 
 var good = [], bad = [];
 
-rules.forEach(r => {
-  let act = actions.find(a => a.actionId === r.id);
+rules.forEach(rule => {
+  let act = actions.find(a => a.actionId === rule.id);
+  if (!act) return bad.push(`Action ${rule.id} not found in response.`);
 
-  if (r.absent) {
-    act ? bad.push(`Action ${r.id} should NOT be present.`) : good.push(`Action ${r.id} correctly absent.`);
-    return;
+  if (rule.payload) {
+    let payload = act?.actionPayload;
+    if (!payload || Object.keys(payload).length === 0)
+      bad.push(`Action ${rule.id} has empty or missing actionPayload.`);
+    else good.push(`Action ${rule.id} has valid actionPayload.`);
   }
-  if (!act) return bad.push(`Action ${r.id} not found.`);
 
-  if (r.payload && (!act.actionPayload || Object.keys(act.actionPayload).length === 0))
-    bad.push(`Action ${r.id} has empty actionPayload.`);
-  else if (r.payload) good.push(`Action ${r.id} has valid payload.`);
+  if (rule.parent !== undefined) {
+    if (act.isParentAction !== rule.parent)
+      bad.push(`Action ${rule.id} isParentAction should be ${rule.parent}.`);
+    else good.push(`Action ${rule.id} isParentAction is correct.`);
+  }
 
-  if (r.parent !== undefined)
-    act.isParentAction !== r.parent
-      ? bad.push(`Action ${r.id} isParent should be ${r.parent}.`)
-      : good.push(`Action ${r.id} isParent is correct.`);
-
-  if (r.name && act.actionName !== r.name)
-    bad.push(`Action ${r.id} name mismatch. Expected '${r.name}', got '${act.actionName}'.`);
-  else if (r.name) good.push(`Action ${r.id} name is correct.`);
+  if (rule.name) {
+    if (act.actionName !== rule.name)
+      bad.push(`Action ${rule.id} name mismatch. Expected '${rule.name}', got '${act.actionName}'`);
+    else good.push(`Action ${rule.id} name matched.`);
+  }
 });
 
 good.forEach(g => console.log(g));
 bad.forEach(b => console.log(b));
-if (bad.length) throw new Error(bad.join('\n'));
+if (bad.length) throw new Error('Validation failed:\n' + bad.join('\n'));
