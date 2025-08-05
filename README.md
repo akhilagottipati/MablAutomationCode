@@ -2,25 +2,25 @@ let resp = typeof responseBody === 'string' ? JSON.parse(responseBody) : respons
 let actions = Array.isArray(resp) ? resp : Object.values(resp).filter(x => x?.actionId);
 let idsInResponse = actions.map(a => a.actionId);
 
-let checkPayload = [1002, 1070];
-let mustBeAbsent = [1069, 1082, 1083, 1084];
+let mustHaveWithPayload = [1002, 1070];
+let mustNotExist = [1069, 1082, 1083, 1084];
 
 let good = [], bad = [];
 
-// Check 1002 & 1070 (optional, but if present, payload must be valid)
-for (let id of checkPayload) {
+// Validate 1002 and 1070
+for (let id of mustHaveWithPayload) {
   let act = actions.find(a => a.actionId === id);
   if (!act) {
-    good.push(`Action ${id} is not present (no validation needed).`);
+    bad.push(`Action ${id} is missing in response.`);
   } else if (!act.actionPayload || Object.keys(act.actionPayload).length === 0) {
-    bad.push(`Action ${id} is present but has empty/missing actionPayload.`);
+    bad.push(`Action ${id} has empty or missing actionPayload.`);
   } else {
-    good.push(`Action ${id} is present with valid actionPayload.`);
+    good.push(`Action ${id} has valid actionPayload.`);
   }
 }
 
-// Check inactive actions must NOT be present
-for (let id of mustBeAbsent) {
+// Ensure inactive actions are not in the response
+for (let id of mustNotExist) {
   if (idsInResponse.includes(id)) {
     bad.push(`Action ${id} should NOT be in response (inactive).`);
   } else {
@@ -28,7 +28,7 @@ for (let id of mustBeAbsent) {
   }
 }
 
-// Output
+//  Output logs
 good.forEach(g => console.log(g));
 bad.forEach(b => console.error(b));
 
