@@ -7,19 +7,20 @@ let mustNotExist = [1069, 1082, 1083, 1084];
 
 let good = [], bad = [];
 
-// Validate 1002 and 1070
 for (let id of mustHaveWithPayload) {
   let act = actions.find(a => a.actionId === id);
   if (!act) {
     bad.push(`Action ${id} is missing in response.`);
-  } else if (!act.actionPayload || Object.keys(act.actionPayload).length === 0) {
-    bad.push(`Action ${id} has empty or missing actionPayload.`);
   } else {
-    good.push(`Action ${id} has valid actionPayload.`);
+    console.log(`Action ${id} actionPayload:`, JSON.stringify(act.actionPayload));
+    if (!act.actionPayload || Object.keys(act.actionPayload).length === 0) {
+      bad.push(`Action ${id} has empty or missing actionPayload.`);
+    } else {
+      good.push(`Action ${id} has valid actionPayload.`);
+    }
   }
 }
 
-// Ensure inactive actions are not in the response
 for (let id of mustNotExist) {
   if (idsInResponse.includes(id)) {
     bad.push(`Action ${id} should NOT be in response (inactive).`);
@@ -28,7 +29,6 @@ for (let id of mustNotExist) {
   }
 }
 
-//  Output logs
 good.forEach(g => console.log(g));
 bad.forEach(b => console.error(b));
 
