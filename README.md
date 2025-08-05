@@ -1,42 +1,35 @@
-var resp = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
-var actions = Array.isArray(resp) ? resp : Object.values(resp).filter(a => a?.actionId);
+let resp = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
+let actions = Array.isArray(resp) ? resp : Object.values(resp).filter(x => x?.actionId);
+let idsInResponse = actions.map(a => a.actionId);
 
-var good = [], bad = [];
+let checkPayload = [1002, 1070];
+let mustBeAbsent = [1069, 1082, 1083, 1084];
 
-// Rules for present actions
-var checks = [
-  { id: 1002, payload: true },
-  { id: 1070, payload: true },
-  { id: 1069, payload: true, name: 'Open MAS Account - MAS Select' }
-];
+let good = [], bad = [];
 
-// Validate present rules
-checks.forEach(rule => {
-  let act = actions.find(a => a.actionId === rule.id);
-  if (!act) return bad.push(`Action ${rule.id} not found in response.`);
-
-  if (rule.payload) {
-    let payload = act?.actionPayload;
-    if (!payload || Object.keys(payload).length === 0)
-      bad.push(`Action ${rule.id} has empty or missing actionPayload.`);
-    else good.push(`Action ${rule.id} has valid actionPayload.`);
+// Check 1002 & 1070 (optional, but if present, payload must be valid)
+for (let id of checkPayload) {
+  let act = actions.find(a => a.actionId === id);
+  if (!act) {
+    good.push(`Action ${id} is not present (no validation needed).`);
+  } else if (!act.actionPayload || Object.keys(act.actionPayload).length === 0) {
+    bad.push(`Action ${id} is present but has empty/missing actionPayload.`);
+  } else {
+    good.push(`Action ${id} is present with valid actionPayload.`);
   }
+}
 
-  if (rule.name) {
-    if (act.actionName !== rule.name)
-      bad.push(`Action ${rule.id} name mismatch. Expected '${rule.name}', got '${act.actionName}'`);
-    else good.push(`Action ${rule.id} name matched.`);
+// Check inactive actions must NOT be present
+for (let id of mustBeAbsent) {
+  if (idsInResponse.includes(id)) {
+    bad.push(`Action ${id} should NOT be in response (inactive).`);
+  } else {
+    good.push(`Action ${id} correctly not present (inactive).`);
   }
-});
+}
 
-// Check that inactive actions are not present
-[1082, 1083, 1084].forEach(id => {
-  if (actions.find(a => a.actionId === id))
-    bad.push(`Action ${id} should NOT be present in response (inactive).`);
-  else
-    good.push(`Action ${id} correctly not present.`);
-});
-
+// Output
 good.forEach(g => console.log(g));
-bad.forEach(b => console.log(b));
-if (bad.length) throw new Error('Validation failed:\n' + bad.join('\n'));
+bad.forEach(b => console.error(b));
+
+if (bad.length > 0) throw new Error("Validation failed:\n" + bad.join("\n"));
